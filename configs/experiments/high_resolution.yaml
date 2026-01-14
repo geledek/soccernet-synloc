@@ -1,0 +1,16 @@
+# High Resolution Experiment
+# ==========================
+# Test impact of larger input size
+
+_base_: '../base.yaml'
+
+model:
+  variant: 's'
+  input_size: [960, 960]
+
+training:
+  batch_size: 8  # Reduced due to memory
+  epochs: 100
+
+augmentation:
+  scale_range: [0.5, 1.5]

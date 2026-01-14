@@ -1,0 +1,13 @@
+# Mosaic Augmentation Experiment
+# ==============================
+# Enable mosaic data augmentation
+
+_base_: '../base.yaml'
+
+augmentation:
+  use_mosaic: true
+  mosaic_prob: 0.5
+  scale_range: [0.5, 1.5]
+
+training:
+  epochs: 120  # More epochs needed with mosaic

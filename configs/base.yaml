@@ -1,0 +1,85 @@
+# SoccerNet SynLoc Baseline Configuration
+# =========================================
+
+# Model Configuration
+model:
+  variant: 'tiny'           # Options: tiny, s, m, l
+  num_keypoints: 2          # pelvis, pelvis_ground
+  input_size: [640, 640]    # [width, height]
+
+# Data Configuration
+data:
+  train_ann: 'train/annotations.json'
+  val_ann: 'valid/annotations.json'
+  test_ann: 'test/annotations.json'
+  challenge_ann: 'challenge/annotations.json'
+  img_subdir: 'images'
+  num_workers: 4
+
+# Training Configuration
+training:
+  batch_size: 16
+  epochs: 100
+  lr: 1e-3
+  weight_decay: 5e-4
+  warmup_epochs: 5
+  min_lr_ratio: 0.05
+
+  # Learning rate schedule
+  scheduler: 'cosine'       # Options: cosine, step
+  step_milestones: [60, 80] # For step scheduler
+  step_gamma: 0.1
+
+  # Gradient
+  grad_clip: 35.0
+
+  # Mixed precision
+  use_amp: true
+
+  # Checkpointing
+  save_interval: 10
+  eval_interval: 5
+
+# Loss Configuration
+loss:
+  cls_weight: 1.0
+  bbox_weight: 5.0
+  obj_weight: 1.0
+  kpt_weight: 1.0
+
+  # IoU loss type
+  iou_mode: 'ciou'          # Options: iou, giou, diou, ciou
+
+  # OKS sigmas for keypoints
+  oks_sigmas: [0.89, 0.89]  # [pelvis, pelvis_ground]
+
+# Augmentation Configuration
+augmentation:
+  # Basic augmentations
+  flip_prob: 0.5
+  color_jitter: true
+
+  # Scale/crop
+  scale_range: [0.6, 1.4]
+
+  # Mosaic
+  use_mosaic: false
+  mosaic_prob: 0.5
+
+  # Strong augmentations (for later epochs)
+  use_strong: false
+  strong_start_epoch: 50
+
+# Inference Configuration
+inference:
+  score_thr: 0.01           # Initial threshold (refined by F1)
+  nms_thr: 0.65
+  max_per_img: 100
+
+  # Keypoint for BEV projection
+  position_from_keypoint_index: 1  # pelvis_ground
+
+# Evaluation Configuration
+evaluation:
+  locsim_tau: 1.0           # LocSim distance threshold (meters)
+  auto_threshold: true      # Auto-select score threshold via F1
