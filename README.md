@@ -10,7 +10,7 @@ A standalone, Colab-friendly baseline for the [SoccerNet SynLoc Challenge](https
 
 **Dataset:** ~70,000 synthetic images with 2D keypoint annotations (pelvis, pelvis_ground)
 
-## Quick Start (Google Colab)
+## Quick Start (Google Colab / Colab Enterprise)
 
 ### Step 1: Setup Environment
 
@@ -21,87 +21,105 @@ Open a new Colab notebook and run:
 !nvidia-smi
 
 # Clone repository
-!git clone https://github.com/YOUR_USERNAME/soccernet-synloc.git
+!git clone https://github.com/geledek/soccernet-synloc.git
 %cd soccernet-synloc
 
 # Install package
 !pip install -e .[dev] -q
-
-# Install SoccerNet downloader
-!pip install SoccerNet -q
 ```
 
-### Step 2: Mount Google Drive & Download Data
+### Step 2: Download Data from GCS
+
+**For Colab Enterprise (recommended):** Data is stored in Google Cloud Storage.
 
 ```python
-from google.colab import drive
-drive.mount('/content/drive')
+# GCS Configuration
+GCS_BUCKET_NAME = 'soccer-net-challenge'
+GCS_FOLDER_PATH = 'SoccerNet/synloc'
+GCS_DATA_PATH = f'gs://{GCS_BUCKET_NAME}/{GCS_FOLDER_PATH}/SpiideoSynLoc'
 
-# Create data directory on Drive (persists across sessions)
-!mkdir -p /content/drive/MyDrive/SoccerNet/synloc
+# Verify data exists
+!gsutil ls {GCS_DATA_PATH}/
 
-# Download dataset (~20GB, takes 10-20 minutes)
-from SoccerNet.Downloader import SoccerNetDownloader
+# Copy data to local SSD (faster training)
+!mkdir -p /content/synloc
 
-downloader = SoccerNetDownloader(LocalDirectory='/content/drive/MyDrive/SoccerNet/synloc')
-downloader.downloadDataTask(
-    task="synloc",
-    split=["train", "valid", "test", "challenge"]
-)
+# Copy annotations
+!gsutil -m cp -r {GCS_DATA_PATH}/annotations /content/synloc/
+
+# Copy images (this takes a few minutes)
+!gsutil -m cp -r {GCS_DATA_PATH}/fullhd/train /content/synloc/
+!gsutil -m cp -r {GCS_DATA_PATH}/fullhd/val /content/synloc/
+!gsutil -m cp -r {GCS_DATA_PATH}/fullhd/test /content/synloc/
+!gsutil -m cp -r {GCS_DATA_PATH}/fullhd/challenge /content/synloc/
 ```
 
-> **Note:** You'll need SoccerNet credentials. Register at [soccer-net.org](https://www.soccer-net.org/)
-
-### Step 3: Organize Data
+### Step 3: Organize Data Structure
 
 ```python
-# The downloaded structure needs reorganization
-# Run this once after download
-
-import os
 from pathlib import Path
 
-DATA_ROOT = Path('/content/drive/MyDrive/SoccerNet/synloc')
+DATA_ROOT = Path('/content/synloc')
 
-# Extract annotations if needed
-if (DATA_ROOT / 'annotations.zip').exists():
-    !unzip -q {DATA_ROOT}/annotations.zip -d {DATA_ROOT}
-
-# Create organized structure
-for split, ann_name in [('train', 'train'), ('valid', 'val'), ('test', 'test'), ('challenge', 'challenge_public')]:
+# Create organized structure expected by the package
+for split, ann_name, img_folder in [
+    ('train', 'train', 'train'),
+    ('valid', 'val', 'val'),
+    ('test', 'test', 'test'),
+    ('challenge', 'challenge_public', 'challenge')
+]:
     split_dir = DATA_ROOT / split
     split_dir.mkdir(exist_ok=True)
 
-    # Move/link annotations
+    # Copy/link annotation
     ann_src = DATA_ROOT / 'annotations' / f'{ann_name}.json'
     ann_dst = split_dir / 'annotations.json'
     if ann_src.exists() and not ann_dst.exists():
         !cp {ann_src} {ann_dst}
 
-    # Link images (assuming fullhd structure)
-    img_src = DATA_ROOT / 'fullhd' / (split if split != 'valid' else 'val')
+    # Create images symlink
+    img_src = DATA_ROOT / img_folder
     img_dst = split_dir / 'images'
     if img_src.exists() and not img_dst.exists():
         !ln -s {img_src} {img_dst}
 
 print("Data organization complete!")
+
+# Verify structure
+!ls -la /content/synloc/train/
 ```
 
-### Step 4: Copy Data to Local SSD (Faster Training)
+### Step 4: Set Paths
 
 ```python
-# Copy to Colab's local SSD for 3-5x faster I/O
-!mkdir -p /content/synloc
-!cp -r /content/drive/MyDrive/SoccerNet/synloc/train /content/synloc/
-!cp -r /content/drive/MyDrive/SoccerNet/synloc/valid /content/synloc/
-
-# Use local path for training
+# Data path (local SSD - fast)
 DATA_ROOT = '/content/synloc'
 
-# Keep checkpoints on Drive (persistent)
-CHECKPOINT_DIR = '/content/drive/MyDrive/SoccerNet/checkpoints'
+# Checkpoint path (GCS - persistent)
+CHECKPOINT_BUCKET = f'gs://{GCS_BUCKET_NAME}/{GCS_FOLDER_PATH}/checkpoints'
+CHECKPOINT_DIR = '/content/checkpoints'
 !mkdir -p {CHECKPOINT_DIR}
 ```
+
+<details>
+<summary><b>Alternative: Google Drive (Standard Colab)</b></summary>
+
+```python
+from google.colab import drive
+drive.mount('/content/drive')
+
+# Download with SoccerNet
+!pip install SoccerNet -q
+from SoccerNet.Downloader import SoccerNetDownloader
+
+downloader = SoccerNetDownloader(LocalDirectory='/content/drive/MyDrive/SoccerNet/synloc')
+downloader.downloadDataTask(task="synloc", split=["train", "valid", "test", "challenge"])
+
+DATA_ROOT = '/content/drive/MyDrive/SoccerNet/synloc'
+CHECKPOINT_DIR = '/content/drive/MyDrive/SoccerNet/checkpoints'
+```
+
+</details>
 
 ### Step 5: Train Model
 
@@ -167,6 +185,10 @@ trainer = SynLocTrainer(
 )
 
 history = trainer.train()
+
+# Save final checkpoint to GCS (persistent)
+!gsutil cp {CHECKPOINT_DIR}/best_model.pth {CHECKPOINT_BUCKET}/
+!gsutil cp {CHECKPOINT_DIR}/final_model.pth {CHECKPOINT_BUCKET}/
 ```
 
 ### Step 6: Evaluate
@@ -217,8 +239,8 @@ from synloc.evaluation import format_results_for_submission, create_submission_z
 
 # Run inference on challenge set
 challenge_dataset = SynLocDataset(
-    ann_file='/content/drive/MyDrive/SoccerNet/synloc/challenge/annotations.json',
-    img_dir='/content/drive/MyDrive/SoccerNet/synloc/challenge/images',
+    ann_file=f'{DATA_ROOT}/challenge/annotations.json',
+    img_dir=f'{DATA_ROOT}/challenge/images',
     transforms=get_val_transforms(config['input_size'][0]),
     input_size=config['input_size']
 )
@@ -234,7 +256,7 @@ results = run_inference(model, challenge_loader, device='cuda')
 filtered_results = [r for r in results if r['score'] >= metrics['score_threshold']]
 
 # Create submission
-SUBMISSION_DIR = '/content/drive/MyDrive/SoccerNet/submissions'
+SUBMISSION_DIR = '/content/submissions'
 !mkdir -p {SUBMISSION_DIR}
 
 results_path, metadata_path = format_results_for_submission(
@@ -246,6 +268,11 @@ results_path, metadata_path = format_results_for_submission(
 
 zip_path = create_submission_zip(results_path, metadata_path, f'{SUBMISSION_DIR}/submission.zip')
 print(f"Submission ready: {zip_path}")
+
+# Upload to GCS for persistence
+SUBMISSION_BUCKET = f'gs://{GCS_BUCKET_NAME}/{GCS_FOLDER_PATH}/submissions'
+!gsutil cp {zip_path} {SUBMISSION_BUCKET}/
+print(f"Uploaded to: {SUBMISSION_BUCKET}/submission.zip")
 ```
 
 ---
@@ -330,13 +357,27 @@ num_workers = 2  # 2-4 is usually optimal
 ### Session Timeout
 
 ```python
-# Save checkpoints frequently to Drive
+# Save checkpoints frequently
 trainer = SynLocTrainer(..., save_interval=5)
 
-# Resume from checkpoint
+# Upload checkpoints to GCS periodically (in training loop or callback)
+!gsutil cp {CHECKPOINT_DIR}/*.pth {CHECKPOINT_BUCKET}/
+
+# Resume from GCS checkpoint
+!gsutil cp {CHECKPOINT_BUCKET}/epoch_50.pth {CHECKPOINT_DIR}/
 checkpoint = torch.load(f'{CHECKPOINT_DIR}/epoch_50.pth')
 model.load_state_dict(checkpoint['model_state_dict'])
 trainer.start_epoch = checkpoint['epoch']
+```
+
+### GCS Data Transfer Slow
+
+```python
+# Use parallel transfers (-m flag)
+!gsutil -m cp -r gs://bucket/path /content/
+
+# For very large datasets, copy only what you need
+!gsutil -m cp -r {GCS_DATA_PATH}/fullhd/train /content/synloc/  # Train only first
 ```
 
 ---
