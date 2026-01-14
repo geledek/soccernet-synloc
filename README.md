@@ -10,9 +10,13 @@ A standalone, Colab-friendly baseline for the [SoccerNet SynLoc Challenge](https
 
 **Dataset:** ~70,000 synthetic images with 2D keypoint annotations (pelvis, pelvis_ground)
 
-## Quick Start (Google Colab / Colab Enterprise)
+## Quick Start
 
-### Step 1: Setup Environment
+> **For Colab Enterprise users:** See the [Colab Enterprise Quickstart Guide](docs/COLAB_ENTERPRISE_QUICKSTART.md) for a streamlined, single-notebook workflow.
+
+### Standard Colab / Colab Enterprise Setup
+
+#### Step 1: Setup Environment
 
 Open a new Colab notebook and run:
 
