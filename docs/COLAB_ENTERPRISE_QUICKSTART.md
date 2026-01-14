@@ -5,8 +5,66 @@ Complete guide for running SoccerNet SynLoc baseline on Google Colab Enterprise.
 ## Prerequisites
 
 - Access to Google Colab Enterprise
-- GCS bucket with SoccerNet data uploaded
-- Your bucket: `gs://soccer-net-challenge/SoccerNet/synloc/SpiideoSynLoc`
+- GCS bucket (you'll upload data to it)
+- SoccerNet account (register at [soccer-net.org](https://www.soccer-net.org/))
+
+---
+
+## Step 0: Upload Data to GCS Bucket (One Time)
+
+Choose one method to get SoccerNet data into your GCS bucket:
+
+### Method A: Download in Colab → Upload to GCS (Recommended)
+
+```python
+# In a Colab Enterprise notebook
+!pip install SoccerNet -q
+
+from SoccerNet.Downloader import SoccerNetDownloader
+
+# Download to local (Colab has fast network)
+downloader = SoccerNetDownloader(LocalDirectory="/content/soccernet_download")
+downloader.downloadDataTask(
+    task="synloc",
+    split=["train", "valid", "test", "challenge"]
+)
+
+# Set your bucket details
+YOUR_BUCKET_NAME = "your-bucket-name"      # Replace with your bucket
+YOUR_FOLDER_PATH = "soccernet/synloc"      # Adjust as needed
+
+# Upload to GCS (takes 10-15 minutes)
+!gsutil -m cp -r /content/soccernet_download/SpiideoSynLoc gs://{YOUR_BUCKET_NAME}/{YOUR_FOLDER_PATH}/
+
+# Verify upload
+!gsutil ls gs://{YOUR_BUCKET_NAME}/{YOUR_FOLDER_PATH}/SpiideoSynLoc/
+```
+
+### Method B: Upload from Local Machine
+
+```bash
+# From your Mac/PC terminal (if you already downloaded locally)
+cd /path/to/your/data
+
+gsutil -m cp -r SpiideoSynLoc gs://YOUR_BUCKET_NAME/soccernet/synloc/
+```
+
+### Verify Data Structure
+
+Your bucket should have:
+```
+gs://YOUR_BUCKET_NAME/soccernet/synloc/SpiideoSynLoc/
+├── annotations/
+│   ├── train.json (280 MB)
+│   ├── val.json (45 MB)
+│   ├── test.json (62 MB)
+│   └── challenge_public.json (8.4 MB)
+└── fullhd/
+    ├── train/ (12 GB - 42,504 images)
+    ├── val/ (1.9 GB - 6,777 images)
+    ├── test/ (2.7 GB - 9,309 images)
+    └── challenge/ (3.3 GB - 11,352 images)
+```
 
 ---
 
@@ -42,17 +100,17 @@ print("✓ Setup complete!")
 ## Step 3: Configure GCS Access
 
 ```python
-# GCS Configuration
-GCS_BUCKET_NAME = 'soccer-net-challenge'
-GCS_FOLDER_PATH = 'SoccerNet/synloc'
+# GCS Configuration - REPLACE WITH YOUR VALUES
+GCS_BUCKET_NAME = 'your-bucket-name'      # Your GCS bucket
+GCS_FOLDER_PATH = 'soccernet/synloc'      # Path within bucket
 GCS_DATA_PATH = f'gs://{GCS_BUCKET_NAME}/{GCS_FOLDER_PATH}/SpiideoSynLoc'
 
 # Verify data exists
 !gsutil ls {GCS_DATA_PATH}/
 
 # Expected output:
-# gs://soccer-net-challenge/SoccerNet/synloc/SpiideoSynLoc/annotations/
-# gs://soccer-net-challenge/SoccerNet/synloc/SpiideoSynLoc/fullhd/
+# gs://your-bucket-name/soccernet/synloc/SpiideoSynLoc/annotations/
+# gs://your-bucket-name/soccernet/synloc/SpiideoSynLoc/fullhd/
 ```
 
 ---
@@ -428,9 +486,9 @@ history = trainer.train()
 ### Data Locations
 
 ```python
-# GCS (persistent)
-GCS_DATA = 'gs://soccer-net-challenge/SoccerNet/synloc/SpiideoSynLoc'
-GCS_CHECKPOINTS = 'gs://soccer-net-challenge/SoccerNet/synloc/checkpoints'
+# GCS (persistent) - Replace with your values
+GCS_DATA = 'gs://YOUR_BUCKET_NAME/soccernet/synloc/SpiideoSynLoc'
+GCS_CHECKPOINTS = 'gs://YOUR_BUCKET_NAME/soccernet/synloc/checkpoints'
 
 # Local (ephemeral, fast)
 DATA_ROOT = '/content/synloc'
@@ -441,13 +499,13 @@ CHECKPOINT_DIR = '/content/checkpoints'
 
 ```bash
 # List GCS bucket
-!gsutil ls gs://soccer-net-challenge/SoccerNet/synloc/
+!gsutil ls gs://YOUR_BUCKET_NAME/soccernet/synloc/
 
 # Copy from GCS to local
-!gsutil -m cp -r gs://bucket/path /content/
+!gsutil -m cp -r gs://YOUR_BUCKET_NAME/path /content/
 
 # Copy from local to GCS
-!gsutil -m cp -r /content/path gs://bucket/
+!gsutil -m cp -r /content/path gs://YOUR_BUCKET_NAME/
 
 # Check disk space
 !df -h /content
@@ -501,9 +559,9 @@ For convenience, here's everything in one cell:
 %cd soccernet-synloc
 !pip install -e . -q
 
-# === 2. GCS CONFIG ===
-GCS_BUCKET_NAME = 'soccer-net-challenge'
-GCS_FOLDER_PATH = 'SoccerNet/synloc'
+# === 2. GCS CONFIG (REPLACE WITH YOUR VALUES) ===
+GCS_BUCKET_NAME = 'your-bucket-name'
+GCS_FOLDER_PATH = 'soccernet/synloc'
 GCS_DATA_PATH = f'gs://{GCS_BUCKET_NAME}/{GCS_FOLDER_PATH}/SpiideoSynLoc'
 
 # === 3. DOWNLOAD DATA ===

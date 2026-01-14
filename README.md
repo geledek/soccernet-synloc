@@ -36,10 +36,12 @@ Open a new Colab notebook and run:
 
 **For Colab Enterprise (recommended):** Data is stored in Google Cloud Storage.
 
+> **First time?** You need to upload data to your GCS bucket first. See the [Colab Enterprise Quickstart Guide - Step 0](docs/COLAB_ENTERPRISE_QUICKSTART.md#step-0-upload-data-to-gcs-bucket-one-time) for instructions.
+
 ```python
-# GCS Configuration
-GCS_BUCKET_NAME = 'soccer-net-challenge'
-GCS_FOLDER_PATH = 'SoccerNet/synloc'
+# GCS Configuration - REPLACE WITH YOUR VALUES
+GCS_BUCKET_NAME = 'your-bucket-name'      # Your GCS bucket
+GCS_FOLDER_PATH = 'soccernet/synloc'      # Path within bucket
 GCS_DATA_PATH = f'gs://{GCS_BUCKET_NAME}/{GCS_FOLDER_PATH}/SpiideoSynLoc'
 
 # Verify data exists
