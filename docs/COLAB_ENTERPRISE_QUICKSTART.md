@@ -46,8 +46,14 @@ YOUR_FOLDER_PATH = "soccernet/synloc"      # Adjust as needed
 # From your Mac/PC terminal (if you already downloaded locally)
 cd /path/to/your/data
 
-gsutil -m cp -r SpiideoSynLoc gs://YOUR_BUCKET_NAME/soccernet/synloc/
+# For macOS users (avoids multiprocessing bug)
+gsutil -m -o "GSUtil:parallel_process_count=1" cp -r -n SpiideoSynLoc gs://YOUR_BUCKET_NAME/soccernet/synloc/
+
+# For Linux/Windows
+gsutil -m cp -r -n SpiideoSynLoc gs://YOUR_BUCKET_NAME/soccernet/synloc/
 ```
+
+> **Note:** The `-n` flag skips files that already exist (useful if upload is interrupted)
 
 ### Verify Data Structure
 
@@ -538,6 +544,17 @@ trainer = SynLocTrainer(..., save_interval=5)
 
 # Upload to GCS periodically
 !gsutil -m cp {CHECKPOINT_DIR}/*.pth {CHECKPOINT_BUCKET}/
+```
+
+#### macOS gsutil error (local upload)
+```bash
+# If you see Python multiprocessing error on Mac:
+# Add this flag to disable multiprocessing
+gsutil -m -o "GSUtil:parallel_process_count=1" cp -r ...
+
+# Or make permanent by adding to ~/.boto:
+# [GSUtil]
+# parallel_process_count = 1
 ```
 
 ---
